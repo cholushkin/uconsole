@@ -3,7 +3,8 @@
     "rootNamespace": "",
     "references": [
         "Unity.InputSystem",
-        "umoonsharp"
+        "umoonsharp",
+        "GameLib"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

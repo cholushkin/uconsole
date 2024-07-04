@@ -2663,7 +2663,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 0.01
 --- !u!225 &22509978
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -3040,7 +3040,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: (type help for list of commands)
+  m_Text: (type help() for list of commands)
 --- !u!1 &1000013131456698
 GameObject:
   m_ObjectHideFlags: 0

@@ -449,6 +449,7 @@ namespace uconsole
 			if( !Instance )
 			{
 				Instance = this;
+				ConsoleSystem.Instance = new ConsoleSystem();
 
 				// If it is a singleton object, don't destroy it between scene changes
 				if( singleton )
@@ -994,46 +995,46 @@ namespace uconsole
 		// Command field input is changed, check if command is submitted
 		private char OnValidateCommand( string text, int charIndex, char addedChar )
 		{
-			// if( addedChar == '\t' ) // Autocomplete attempt
-			// {
-			// 	if( !string.IsNullOrEmpty( text ) )
-			// 	{
-			// 		if( string.IsNullOrEmpty( commandInputFieldAutoCompleteBase ) )
-			// 			commandInputFieldAutoCompleteBase = text;
-			//
-			// 		string autoCompletedCommand = DebugLogConsole.GetAutoCompleteCommand( commandInputFieldAutoCompleteBase, text );
-			// 		if( !string.IsNullOrEmpty( autoCompletedCommand ) && autoCompletedCommand != text )
-			// 		{
-			// 			commandInputFieldAutoCompletedNow = true;
-			// 			commandInputField.text = autoCompletedCommand;
-			// 		}
-			// 	}
-			//
-			// 	return '\0';
-			// }
-			// else if( addedChar == '\n' ) // Command is submitted
-			// {
-			// 	// Clear the command field
-			// 	if( clearCommandAfterExecution )
-			// 		commandInputField.text = string.Empty;
-			//
-			// 	if( text.Length > 0 )
-			// 	{
-			// 		if( commandHistory.Count == 0 || commandHistory[commandHistory.Count - 1] != text )
-			// 			commandHistory.Add( text );
-			//
-			// 		commandHistoryIndex = -1;
-			// 		unfinishedCommand = null;
-			//
-			// 		// Execute the command
-			// 		DebugLogConsole.ExecuteCommand( text );
-			//
-			// 		// Snap to bottom and select the latest entry
-			// 		SnapToBottom = true;
-			// 	}
-			//
-			// 	return '\0';
-			// }
+			if( addedChar == '\t' ) // Autocomplete attempt
+			{
+				if( !string.IsNullOrEmpty( text ) )
+				{
+					if( string.IsNullOrEmpty( commandInputFieldAutoCompleteBase ) )
+						commandInputFieldAutoCompleteBase = text;
+			
+					// string autoCompletedCommand = DebugLogConsole.GetAutoCompleteCommand( commandInputFieldAutoCompleteBase, text );
+					// if( !string.IsNullOrEmpty( autoCompletedCommand ) && autoCompletedCommand != text )
+					// {
+					// 	commandInputFieldAutoCompletedNow = true;
+					// 	commandInputField.text = autoCompletedCommand;
+					// }
+				}
+			
+				return '\0';
+			}
+			else if( addedChar == '\n' ) // Command is submitted
+			{
+				// Clear the command field
+				if( clearCommandAfterExecution )
+					commandInputField.text = string.Empty;
+			
+				if( text.Length > 0 )
+				{
+					if( commandHistory.Count == 0 || commandHistory[commandHistory.Count - 1] != text )
+						commandHistory.Add( text );
+			
+					commandHistoryIndex = -1;
+					unfinishedCommand = null;
+			
+					// Execute the command
+					ConsoleSystem.Instance.Executor.ExecuteString(text);
+			
+					// Snap to bottom and select the latest entry
+					SnapToBottom = true;
+				}
+			
+				return '\0';
+			}
 
 			return addedChar;
 		}

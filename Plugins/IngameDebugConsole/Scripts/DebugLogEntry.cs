@@ -9,7 +9,6 @@ namespace uconsole
 	public class DebugLogEntry
 	{
 		private const int HASH_NOT_CALCULATED = -623218;
-		internal static readonly CompareInfo caseInsensitiveComparer = new CultureInfo( "en-US" ).CompareInfo;
 
 		public string logString;
 		public string stackTrace;
@@ -46,8 +45,8 @@ namespace uconsole
 		// Checks if logString or stackTrace contains the search term
 		public bool MatchesSearchTerm( string searchTerm )
 		{
-			return ( logString != null && caseInsensitiveComparer.IndexOf( logString, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 ) ||
-				( stackTrace != null && caseInsensitiveComparer.IndexOf( stackTrace, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 );
+			return ( logString != null && ConsoleSystem.caseInsensitiveComparer.IndexOf( logString, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 ) ||
+				( stackTrace != null && ConsoleSystem.caseInsensitiveComparer.IndexOf( stackTrace, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 );
 		}
 
 		// Return a string containing complete information about this debug entry
@@ -92,8 +91,8 @@ namespace uconsole
 		// Checks if logString or stackTrace contains the search term
 		public bool MatchesSearchTerm( string searchTerm )
 		{
-			return ( logString != null && DebugLogEntry.caseInsensitiveComparer.IndexOf( logString, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 ) ||
-				( stackTrace != null && DebugLogEntry.caseInsensitiveComparer.IndexOf( stackTrace, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 );
+			return ( logString != null && ConsoleSystem.caseInsensitiveComparer.IndexOf( logString, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 ) ||
+				( stackTrace != null && ConsoleSystem.caseInsensitiveComparer.IndexOf( stackTrace, searchTerm, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace ) >= 0 );
 		}
 	}
 

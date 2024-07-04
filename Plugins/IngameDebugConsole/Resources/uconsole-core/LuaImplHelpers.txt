@@ -1,0 +1,331 @@
+-- Note: all commands and variables must be converted to lower case and trimmed before passed here
+__CSCommandsRegister = 
+{   
+--format: {alias, fullName, func}
+}
+
+__CSVariablesRegister = 
+{
+-- format: {alias, fullName, getter, setter}
+}
+
+local function IsEmpty(s)
+  return s == nil or s == ''
+end
+
+function PrintTable(t, nestLev, maxNest)
+  if t == nil then
+    print("<nil>")
+    return
+  end
+  nestLev = nestLev or 1
+  maxNest = maxNest or (nestLev + 1)
+
+  local curIdent = ""
+  for i = 1, nestLev-1  do
+    curIdent = curIdent..".."
+  end
+  
+  if nestLev == maxNest+1 then    
+    print(curIdent.."<exceeds nesting>")
+    return
+  end  
+
+  local cnt = 0  
+  for k,v in pairs(t) do
+    if type(v) == 'table' and v==t then
+        print('<loop> '..k)
+        goto continue
+    end
+    if type(v) == 'table' then
+      print(curIdent..'['..k..'] = ')
+      PrintTable(v, nestLev + 1, maxNest)
+    else
+      local str = tostring(v)
+      str = str:gsub('%\n', '')
+      print(curIdent..'['..k..'] = '..str)
+    end
+    ::continue::
+    cnt = cnt + 1
+  end
+  
+  if cnt == 0 then
+     print(curIdent.."<empty>")
+  end
+end
+
+function SplitString (inputstr, sep)
+        if sep == nil then
+                sep = "%s"
+        end
+        local t={}
+        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+                table.insert(t, str)
+        end
+        return t
+end
+
+local function PrepareCommandPath(path)
+    local domains
+    if type(path) == "table" then
+        domains = path
+    else
+        assert(type(path) == "string", "Invalid argument: 'path' must be a string or a table.")
+        domains = SplitString(path, ".")
+    end
+
+    local prevTable = _G
+    local curRootTable = _G
+    local lastTableName = "_G"
+    for i = 1, #domains do
+        local d = domains[i]
+        if rawget(curRootTable, d) == nil then
+            rawset(curRootTable, d, {})
+        else
+            -- reusing existing table
+            if type(rawget(curRootTable, d)) ~= "table" then
+                print("Error: path conflicts with variable " .. d .. " of type " .. type(rawget(curRootTable, d)))
+                PrintTable(domains, 1, 4)
+                return
+            end
+        end
+        prevTable = curRootTable
+        lastTableName = d
+        curRootTable = rawget(curRootTable, d)
+    end
+    return prevTable, curRootTable, lastTableName
+end
+
+
+function AddToCommandRegister(alias, fullName, func)
+  if __CSCommandsRegister == nil then
+    print("Error: There is no __CSCommandsRegister table avaialbe")
+    return
+  end
+  
+  if IsEmpty(alias) then
+    print("Error: alias is empty")
+    return
+  end  
+  
+  if IsEmpty(fullName) then
+    print("Error: fullName is empty")
+    return
+  end  
+  
+  -- Check for existing alias in __CSCommandsRegister
+  for k,v in pairs(__CSCommandsRegister) do
+    if(v[1] == alias) then
+      print("Error: Command with alias "..alias.." already exists. Skipping registration for command "..fullName)
+      return
+    end
+  end
+  
+  -- Check for existing full path in __CSCommandsRegister
+  for k,v in pairs(__CSCommandsRegister) do
+    if(v[2] == fullName) then
+      print("Error: Command with fullName "..fullName.." already exists. Skipping registration for command "..fullName)
+      return
+    end
+  end
+  table.insert(__CSCommandsRegister, {alias, fullName, func})  
+end
+
+function AddToVariableRegister(alias, fullName, getter, setter)
+  if __CSVariablesRegister == nil then
+    print("Error: There is no __CSVariablesRegister table avaialbe")
+    return
+  end
+  
+  if getter == nil then
+    print("Error: Getter can't be nil (only setter could)")
+  end
+  
+  if IsEmpty(alias) then
+    print("Error: alias is empty")
+    return
+  end  
+  
+  if IsEmpty(fullName) then
+    print("Error: fullName is empty")
+    return
+  end
+  
+  -- Check for existing in __CSVariablesRegister alias
+  for k,v in pairs(__CSVariablesRegister) do
+    if v[1] == alias then
+      print("Error: Variable with alias "..alias.." already exists. Skipping registration for variable "..fullName)
+      return
+    end
+  end
+  
+  -- Check for existing full path in __CSVariablesRegister
+  for k,v in pairs(__CSVariablesRegister) do
+    if v[2] == fullName then
+      print("Error: Variable with fullName "..fullName.." already exists. Skipping registration for variable "..fullName)
+      return
+    end
+  end
+  table.insert(__CSVariablesRegister, {alias, fullName, getter, setter})  
+
+end
+
+-- notes: targetObject table might have multiple variables
+-- metatable contains data with mapping (keyname,getter) and __indexfunction
+local function InjectGetter(targetObject, propName, getterFunction)
+    local propGetter = function(t, key)        
+        local meta = getmetatable(t)
+        local getter = meta.getterMap[key]
+        assert(meta ~= nil)        
+            
+        if getter ~= nil then
+            return getter()
+        else
+            print('There is no getter for '..key)
+        end
+    end
+    
+    -- Check the path
+    if type(targetObject[propName]) ~= "table" then
+        print("Error: path conflict")
+        return
+    end
+    if next(targetObject[propName]) ~= nil then -- The last table in the path is a temp table and should be empty. 
+        print("Error: path conflict")
+        return   
+    end
+    targetObject[propName] = nil
+    
+    local meta = getmetatable(targetObject)
+    if meta ~= nil then
+        -- just add new pair (propName,getterFunction) to getterMap of the existing metatable        
+        meta.getterMap[propName] = getterFunction        
+    else -- else branch: first time adding a key to targetObject, no meta table
+        -- Setup metatable
+        local meta = {}
+        meta.__index = propGetter
+        meta.getterMap = {}
+        meta.getterMap[propName] = getterFunction        
+        setmetatable(targetObject, meta)
+    end  
+end
+
+-- Note: every exposed variable must have getter but setter is optional and will be added to existing metatable
+local function InjectSetter(targetObject, propName, setterFunction)    
+    local propSetter = function(t, key, value)
+        local meta = getmetatable(t)
+        local setter = meta.setterMap[key]
+        assert(meta ~= nil)        
+            
+        if setter ~= nil then
+            return setter(value)
+        else
+            print('Error: there is no setter for '..key)
+        end
+    end    
+    
+    -- Check the path
+    if type(targetObject) ~= "table" then
+        print("Error: path conflict")
+        return
+    end    
+            
+    local meta = getmetatable(targetObject)
+    if meta == nil then
+        print("Error: metable is nil during injecting setter")
+        return
+    end    
+    
+    if meta.setterMap ~= nil then 
+        -- just add new pair (propName,getterFunction) to setterMap of the existing metatable        
+        meta.setterMap[propName] = setterFunction        
+    else -- else branch: first time adding a key to targetObject, no meta table
+        -- Add __newindex and setterMap to existing metatable        
+        meta.__newindex = propSetter
+        meta.setterMap = {}
+        meta.setterMap[propName] = setterFunction                
+    end  
+end
+
+local function InjectMethod(parentTable, methodName, func)
+    if type(parentTable[methodName]) ~= "table" then
+        print("Error: path conflict")
+        return
+    end
+    if next(parentTable[methodName]) ~= nil then -- the last table in path is tmp table and should be empty. it will be replaced by methodName key
+        print("Error: path conflict")
+        return   
+    end
+    -- overwrite last table with method
+    parentTable[methodName] = func
+end
+
+local function CheckFreeName(name)
+    return _G[name] == nil
+end
+
+
+-- Before the registration of global commands and variables check if there any tables or variables
+-- in _G which has name same as first part of any of Registered cmd/vars. This is needed to 
+-- prevent writing in existing global tables or variables of lua state
+local function CheckNamespaces()
+    for k,v in pairs(__CSCommandsRegister) do
+        -- Command full name
+        local domains = SplitString(v[2], ".")
+        if CheckFreeName(domains[1]) == false then
+            print("Error: global name is in use: '"..domains[1].."'. Your command name also starts from it - "..v[2] )            
+        end
+
+        -- Alias command 
+        if CheckFreeName(v[1]) == false then
+            print("Error: global name is in use: '"..v[1].."'. Your command alias also has such name")            
+        end
+    end
+    
+    for k,v in pairs(__CSVariablesRegister) do
+        -- Variable full name
+        local domains = SplitString(v[2], ".")
+        if CheckFreeName(domains[1]) == false then
+            print("Error: global name is in use: '"..domains[1].."'. Your variable name also starts from it - "..v[2] )            
+        end
+
+        -- Alias variable
+        if CheckFreeName(v[1]) == false then
+            print("Error: global name is in use: '"..v[1].."'. Your variable alias also has such name")            
+        end
+    end
+end
+
+local function RegisterCommands()    
+    -- Register aliases and commands
+    for k,v in pairs(__CSCommandsRegister) do        
+        local domains = SplitString(v[2], ".")
+    
+        local tprev, tlast, lastName = PrepareCommandPath(domains)        
+        InjectMethod(tprev, lastName, v[3]) 
+    
+        local tprev, tlast, lastName = PrepareCommandPath(v[1])        
+        InjectMethod(tprev, lastName, v[3]) 
+    end        
+end
+
+local function RegisterVariables()
+    for k,v in pairs(__CSVariablesRegister) do        
+        local domains = SplitString(v[2], ".")
+            
+        local tprev, tlast, lastName = PrepareCommandPath(domains)      
+        InjectGetter(tprev, lastName, v[3])
+        InjectSetter(tprev, lastName, v[4])
+    
+        local tprev, tlast, lastName = PrepareCommandPath(v[1])
+        InjectGetter(tprev, lastName, v[3])
+        InjectSetter(tprev, lastName, v[4])
+    end        
+end
+
+
+function Register()
+  CheckNamespaces()
+  RegisterCommands()
+  RegisterVariables()
+end
