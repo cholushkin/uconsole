@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using uconsole;
+using UnityEditor;
 using UnityEngine;
 
 namespace IngameDebugConsole

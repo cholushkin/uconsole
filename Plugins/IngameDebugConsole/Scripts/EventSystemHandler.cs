@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem.UI;
 #endif
 
-namespace IngameDebugConsole
+namespace uconsole
 {
 	// Avoid multiple EventSystems in the scene by activating the embedded EventSystem only if one doesn't already exist in the scene
 	[DefaultExecutionOrder( 1000 )]

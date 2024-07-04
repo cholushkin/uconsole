@@ -24,7 +24,7 @@ using Screen = UnityEngine.Device.Screen; // To support Device Simulator on Unit
 // to show their properties on screen (these log items are recycled as the list is scrolled)
 
 // An enum to represent filtered log types
-namespace IngameDebugConsole
+namespace uconsole
 {
 	public enum DebugLogFilter
 	{
@@ -382,7 +382,7 @@ namespace IngameDebugConsole
 		// Command suggestions that match the currently entered command
 		private List<Text> commandSuggestionInstances;
 		private int visibleCommandSuggestionInstances = 0;
-		private List<ConsoleMethodInfo> matchingCommandSuggestions;
+		private List<ConsoleSystem.ConsoleMethodInfo> matchingCommandSuggestions;
 		private List<int> commandCaretIndexIncrements;
 		private string commandInputFieldPrevCommand;
 		private string commandInputFieldPrevCommandName;
@@ -463,7 +463,7 @@ namespace IngameDebugConsole
 			pooledLogEntries = new Stack<DebugLogEntry>( 64 );
 			pooledLogItems = new Stack<DebugLogItem>( 16 );
 			commandSuggestionInstances = new List<Text>( 8 );
-			matchingCommandSuggestions = new List<ConsoleMethodInfo>( 8 );
+			matchingCommandSuggestions = new List<ConsoleSystem.ConsoleMethodInfo>( 8 );
 			commandCaretIndexIncrements = new List<int>( 8 );
 			queuedLogEntries = new DynamicCircularBuffer<QueuedDebugLogEntry>( Mathf.Clamp( queuedLogLimit, 16, 4096 ) );
 			commandHistory = new CircularBuffer<string>( commandHistorySize );
@@ -609,11 +609,6 @@ namespace IngameDebugConsole
 #endif
 			}
 
-#if IDG_ENABLE_HELPER_COMMANDS || IDG_ENABLE_LOGS_SAVE_COMMAND
-			DebugLogConsole.AddCommand( "logs.save", "Saves logs to persistentDataPath", SaveLogsToFile );
-			DebugLogConsole.AddCommand<string>( "logs.save", "Saves logs to the specified file", SaveLogsToFile );
-#endif
-
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 			if( toggleWithKey )
 				toggleBinding.Enable();
@@ -638,8 +633,6 @@ namespace IngameDebugConsole
 			if( logcatListener != null )
 				logcatListener.Stop();
 #endif
-
-			DebugLogConsole.RemoveCommand( "logs.save" );
 
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 			if( toggleBinding.enabled )
@@ -1001,46 +994,46 @@ namespace IngameDebugConsole
 		// Command field input is changed, check if command is submitted
 		private char OnValidateCommand( string text, int charIndex, char addedChar )
 		{
-			if( addedChar == '\t' ) // Autocomplete attempt
-			{
-				if( !string.IsNullOrEmpty( text ) )
-				{
-					if( string.IsNullOrEmpty( commandInputFieldAutoCompleteBase ) )
-						commandInputFieldAutoCompleteBase = text;
-
-					string autoCompletedCommand = DebugLogConsole.GetAutoCompleteCommand( commandInputFieldAutoCompleteBase, text );
-					if( !string.IsNullOrEmpty( autoCompletedCommand ) && autoCompletedCommand != text )
-					{
-						commandInputFieldAutoCompletedNow = true;
-						commandInputField.text = autoCompletedCommand;
-					}
-				}
-
-				return '\0';
-			}
-			else if( addedChar == '\n' ) // Command is submitted
-			{
-				// Clear the command field
-				if( clearCommandAfterExecution )
-					commandInputField.text = string.Empty;
-
-				if( text.Length > 0 )
-				{
-					if( commandHistory.Count == 0 || commandHistory[commandHistory.Count - 1] != text )
-						commandHistory.Add( text );
-
-					commandHistoryIndex = -1;
-					unfinishedCommand = null;
-
-					// Execute the command
-					DebugLogConsole.ExecuteCommand( text );
-
-					// Snap to bottom and select the latest entry
-					SnapToBottom = true;
-				}
-
-				return '\0';
-			}
+			// if( addedChar == '\t' ) // Autocomplete attempt
+			// {
+			// 	if( !string.IsNullOrEmpty( text ) )
+			// 	{
+			// 		if( string.IsNullOrEmpty( commandInputFieldAutoCompleteBase ) )
+			// 			commandInputFieldAutoCompleteBase = text;
+			//
+			// 		string autoCompletedCommand = DebugLogConsole.GetAutoCompleteCommand( commandInputFieldAutoCompleteBase, text );
+			// 		if( !string.IsNullOrEmpty( autoCompletedCommand ) && autoCompletedCommand != text )
+			// 		{
+			// 			commandInputFieldAutoCompletedNow = true;
+			// 			commandInputField.text = autoCompletedCommand;
+			// 		}
+			// 	}
+			//
+			// 	return '\0';
+			// }
+			// else if( addedChar == '\n' ) // Command is submitted
+			// {
+			// 	// Clear the command field
+			// 	if( clearCommandAfterExecution )
+			// 		commandInputField.text = string.Empty;
+			//
+			// 	if( text.Length > 0 )
+			// 	{
+			// 		if( commandHistory.Count == 0 || commandHistory[commandHistory.Count - 1] != text )
+			// 			commandHistory.Add( text );
+			//
+			// 		commandHistoryIndex = -1;
+			// 		unfinishedCommand = null;
+			//
+			// 		// Execute the command
+			// 		DebugLogConsole.ExecuteCommand( text );
+			//
+			// 		// Snap to bottom and select the latest entry
+			// 		SnapToBottom = true;
+			// 	}
+			//
+			// 	return '\0';
+			// }
 
 			return addedChar;
 		}
@@ -1503,102 +1496,102 @@ namespace IngameDebugConsole
 		// Show suggestions for the currently entered command
 		private void RefreshCommandSuggestions( string command )
 		{
-			if( !showCommandSuggestions )
-				return;
-
-			commandInputFieldPrevCaretPos = commandInputField.caretPosition;
-
-			// Don't recalculate the command suggestions if the input command hasn't changed (i.e. only caret's position has changed)
-			bool commandChanged = command != commandInputFieldPrevCommand;
-			bool commandNameOrParametersChanged = false;
-			if( commandChanged )
-			{
-				commandInputFieldPrevCommand = command;
-
-				matchingCommandSuggestions.Clear();
-				commandCaretIndexIncrements.Clear();
-
-				string prevCommandName = commandInputFieldPrevCommandName;
-				int numberOfParameters;
-				DebugLogConsole.GetCommandSuggestions( command, matchingCommandSuggestions, commandCaretIndexIncrements, ref commandInputFieldPrevCommandName, out numberOfParameters );
-				if( prevCommandName != commandInputFieldPrevCommandName || numberOfParameters != commandInputFieldPrevParamCount )
-				{
-					commandInputFieldPrevParamCount = numberOfParameters;
-					commandNameOrParametersChanged = true;
-				}
-			}
-
-			int caretArgumentIndex = 0;
-			int caretPos = commandInputField.caretPosition;
-			for( int i = 0; i < commandCaretIndexIncrements.Count && caretPos > commandCaretIndexIncrements[i]; i++ )
-				caretArgumentIndex++;
-
-			if( caretArgumentIndex != commandInputFieldPrevCaretArgumentIndex )
-				commandInputFieldPrevCaretArgumentIndex = caretArgumentIndex;
-			else if( !commandChanged || !commandNameOrParametersChanged )
-			{
-				// Command suggestions don't need to be updated if:
-				// a) neither the entered command nor the argument that the caret is hovering has changed
-				// b) entered command has changed but command's name hasn't changed, parameter count hasn't changed and the argument
-				//    that the caret is hovering hasn't changed (i.e. user has continued typing a parameter's value)
-				return;
-			}
-
-			if( matchingCommandSuggestions.Count == 0 )
-				OnEndEditCommand( command );
-			else
-			{
-				if( !commandSuggestionsContainer.gameObject.activeSelf )
-					commandSuggestionsContainer.gameObject.SetActive( true );
-
-				int suggestionInstancesCount = commandSuggestionInstances.Count;
-				int suggestionsCount = matchingCommandSuggestions.Count;
-
-				for( int i = 0; i < suggestionsCount; i++ )
-				{
-					if( i >= visibleCommandSuggestionInstances )
-					{
-						if( i >= suggestionInstancesCount )
-							commandSuggestionInstances.Add( (Text) Instantiate( commandSuggestionPrefab, commandSuggestionsContainer, false ) );
-						else
-							commandSuggestionInstances[i].gameObject.SetActive( true );
-
-						visibleCommandSuggestionInstances++;
-					}
-
-					ConsoleMethodInfo suggestedCommand = matchingCommandSuggestions[i];
-					sharedStringBuilder.Length = 0;
-					if( caretArgumentIndex > 0 )
-						sharedStringBuilder.Append( suggestedCommand.command );
-					else
-						sharedStringBuilder.Append( commandSuggestionHighlightStart ).Append( matchingCommandSuggestions[i].command ).Append( commandSuggestionHighlightEnd );
-
-					if( suggestedCommand.parameters.Length > 0 )
-					{
-						sharedStringBuilder.Append( " " );
-
-						// If the command name wasn't highlighted, a parameter must always be highlighted
-						int caretParameterIndex = caretArgumentIndex - 1;
-						if( caretParameterIndex >= suggestedCommand.parameters.Length )
-							caretParameterIndex = suggestedCommand.parameters.Length - 1;
-
-						for( int j = 0; j < suggestedCommand.parameters.Length; j++ )
-						{
-							if( caretParameterIndex != j )
-								sharedStringBuilder.Append( suggestedCommand.parameters[j] );
-							else
-								sharedStringBuilder.Append( commandSuggestionHighlightStart ).Append( suggestedCommand.parameters[j] ).Append( commandSuggestionHighlightEnd );
-						}
-					}
-
-					commandSuggestionInstances[i].text = sharedStringBuilder.ToString();
-				}
-
-				for( int i = visibleCommandSuggestionInstances - 1; i >= suggestionsCount; i-- )
-					commandSuggestionInstances[i].gameObject.SetActive( false );
-
-				visibleCommandSuggestionInstances = suggestionsCount;
-			}
+			// if( !showCommandSuggestions )
+			// 	return;
+			//
+			// commandInputFieldPrevCaretPos = commandInputField.caretPosition;
+			//
+			// // Don't recalculate the command suggestions if the input command hasn't changed (i.e. only caret's position has changed)
+			// bool commandChanged = command != commandInputFieldPrevCommand;
+			// bool commandNameOrParametersChanged = false;
+			// if( commandChanged )
+			// {
+			// 	commandInputFieldPrevCommand = command;
+			//
+			// 	matchingCommandSuggestions.Clear();
+			// 	commandCaretIndexIncrements.Clear();
+			//
+			// 	string prevCommandName = commandInputFieldPrevCommandName;
+			// 	int numberOfParameters;
+			// 	DebugLogConsole.GetCommandSuggestions( command, matchingCommandSuggestions, commandCaretIndexIncrements, ref commandInputFieldPrevCommandName, out numberOfParameters );
+			// 	if( prevCommandName != commandInputFieldPrevCommandName || numberOfParameters != commandInputFieldPrevParamCount )
+			// 	{
+			// 		commandInputFieldPrevParamCount = numberOfParameters;
+			// 		commandNameOrParametersChanged = true;
+			// 	}
+			// }
+			//
+			// int caretArgumentIndex = 0;
+			// int caretPos = commandInputField.caretPosition;
+			// for( int i = 0; i < commandCaretIndexIncrements.Count && caretPos > commandCaretIndexIncrements[i]; i++ )
+			// 	caretArgumentIndex++;
+			//
+			// if( caretArgumentIndex != commandInputFieldPrevCaretArgumentIndex )
+			// 	commandInputFieldPrevCaretArgumentIndex = caretArgumentIndex;
+			// else if( !commandChanged || !commandNameOrParametersChanged )
+			// {
+			// 	// Command suggestions don't need to be updated if:
+			// 	// a) neither the entered command nor the argument that the caret is hovering has changed
+			// 	// b) entered command has changed but command's name hasn't changed, parameter count hasn't changed and the argument
+			// 	//    that the caret is hovering hasn't changed (i.e. user has continued typing a parameter's value)
+			// 	return;
+			// }
+			//
+			// if( matchingCommandSuggestions.Count == 0 )
+			// 	OnEndEditCommand( command );
+			// else
+			// {
+			// 	if( !commandSuggestionsContainer.gameObject.activeSelf )
+			// 		commandSuggestionsContainer.gameObject.SetActive( true );
+			//
+			// 	int suggestionInstancesCount = commandSuggestionInstances.Count;
+			// 	int suggestionsCount = matchingCommandSuggestions.Count;
+			//
+			// 	for( int i = 0; i < suggestionsCount; i++ )
+			// 	{
+			// 		if( i >= visibleCommandSuggestionInstances )
+			// 		{
+			// 			if( i >= suggestionInstancesCount )
+			// 				commandSuggestionInstances.Add( (Text) Instantiate( commandSuggestionPrefab, commandSuggestionsContainer, false ) );
+			// 			else
+			// 				commandSuggestionInstances[i].gameObject.SetActive( true );
+			//
+			// 			visibleCommandSuggestionInstances++;
+			// 		}
+			//
+			// 		ConsoleSystem.ConsoleMethodInfo suggestedCommand = matchingCommandSuggestions[i];
+			// 		sharedStringBuilder.Length = 0;
+			// 		if( caretArgumentIndex > 0 )
+			// 			sharedStringBuilder.Append( suggestedCommand.command );
+			// 		else
+			// 			sharedStringBuilder.Append( commandSuggestionHighlightStart ).Append( matchingCommandSuggestions[i].command ).Append( commandSuggestionHighlightEnd );
+			//
+			// 		if( suggestedCommand.parameters.Length > 0 )
+			// 		{
+			// 			sharedStringBuilder.Append( " " );
+			//
+			// 			// If the command name wasn't highlighted, a parameter must always be highlighted
+			// 			int caretParameterIndex = caretArgumentIndex - 1;
+			// 			if( caretParameterIndex >= suggestedCommand.parameters.Length )
+			// 				caretParameterIndex = suggestedCommand.parameters.Length - 1;
+			//
+			// 			for( int j = 0; j < suggestedCommand.parameters.Length; j++ )
+			// 			{
+			// 				if( caretParameterIndex != j )
+			// 					sharedStringBuilder.Append( suggestedCommand.parameters[j] );
+			// 				else
+			// 					sharedStringBuilder.Append( commandSuggestionHighlightStart ).Append( suggestedCommand.parameters[j] ).Append( commandSuggestionHighlightEnd );
+			// 			}
+			// 		}
+			//
+			// 		commandSuggestionInstances[i].text = sharedStringBuilder.ToString();
+			// 	}
+			//
+			// 	for( int i = visibleCommandSuggestionInstances - 1; i >= suggestionsCount; i-- )
+			// 		commandSuggestionInstances[i].gameObject.SetActive( false );
+			//
+			// 	visibleCommandSuggestionInstances = suggestionsCount;
+			// }
 		}
 
 		// Command input field's text has changed
