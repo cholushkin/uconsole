@@ -307,7 +307,7 @@ namespace uconsole
 		private CanvasGroup logWindowCanvasGroup;
 
 		[SerializeField]
-		private DebugLogPopup popupManager;
+		private DebugLogPickle popupManager;
 
 		[SerializeField]
 		private ScrollRect logItemsScrollRect;

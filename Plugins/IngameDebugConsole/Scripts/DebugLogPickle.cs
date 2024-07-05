@@ -9,7 +9,7 @@ using Screen = UnityEngine.Device.Screen; // To support Device Simulator on Unit
 // Manager class for the debug popup
 namespace uconsole
 {
-	public class DebugLogPopup : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
+	public class DebugLogPickle : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 	{
 		private RectTransform popupTransform;
 
