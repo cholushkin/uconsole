@@ -75,8 +75,6 @@ namespace uconsole
 		[SerializeField]
 		private Text logCountText;
 
-		[SerializeField]
-		private RectTransform copyLogButton;
 #pragma warning restore 0649
 
 		// Debug entry to show with this log item
@@ -94,7 +92,6 @@ namespace uconsole
 
 		private Vector2 logTextOriginalPosition;
 		private Vector2 logTextOriginalSize;
-		private float copyLogButtonHeight;
 
 		private DebugLogRecycledListView listView;
 
@@ -104,11 +101,6 @@ namespace uconsole
 
 			logTextOriginalPosition = logText.rectTransform.anchoredPosition;
 			logTextOriginalSize = logText.rectTransform.sizeDelta;
-			copyLogButtonHeight = copyLogButton.anchoredPosition.y + copyLogButton.sizeDelta.y + 2f; // 2f: space between text and button
-
-#if !UNITY_EDITOR && UNITY_WEBGL
-			copyLogButton.gameObject.AddComponent<DebugLogItemCopyWebGL>().Initialize( this );
-#endif
 		}
 
 		public void SetContent( DebugLogEntry logEntry, DebugLogEntryTimestamp? logEntryTimestamp, int entryIndex, bool isExpanded )
@@ -123,27 +115,11 @@ namespace uconsole
 			{
 				logText.horizontalOverflow = HorizontalWrapMode.Wrap;
 				size.y = listView.SelectedItemHeight;
-
-				if( !copyLogButton.gameObject.activeSelf )
-				{
-					copyLogButton.gameObject.SetActive( true );
-
-					logText.rectTransform.anchoredPosition = new Vector2( logTextOriginalPosition.x, logTextOriginalPosition.y + copyLogButtonHeight * 0.5f );
-					logText.rectTransform.sizeDelta = logTextOriginalSize - new Vector2( 0f, copyLogButtonHeight );
-				}
 			}
 			else
 			{
 				logText.horizontalOverflow = HorizontalWrapMode.Overflow;
 				size.y = listView.ItemHeight;
-
-				if( copyLogButton.gameObject.activeSelf )
-				{
-					copyLogButton.gameObject.SetActive( false );
-
-					logText.rectTransform.anchoredPosition = logTextOriginalPosition;
-					logText.rectTransform.sizeDelta = logTextOriginalSize;
-				}
 			}
 
 			transformComponent.sizeDelta = size;
@@ -201,9 +177,16 @@ namespace uconsole
 			}
 		}
 
+		private float _lastTimeClick = 0f;
 		// This log item is clicked, show the debug entry's stack trace
 		public void OnPointerClick( PointerEventData eventData )
 		{
+			if (Time.time - _lastTimeClick < 0.3f)
+			{
+				Debug.Log("aaaa");
+			}
+
+			_lastTimeClick = Time.time;
 #if UNITY_EDITOR
 			if( eventData.button == PointerEventData.InputButton.Right )
 			{
@@ -265,7 +248,7 @@ namespace uconsole
 			SetText( logEntry, logEntryTimestamp, true );
 			logText.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-			float result = logText.preferredHeight + copyLogButtonHeight;
+			float result = logText.preferredHeight;
 
 			logText.text = text;
 			logText.horizontalOverflow = wrapMode;
