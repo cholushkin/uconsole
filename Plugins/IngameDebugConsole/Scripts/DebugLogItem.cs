@@ -183,7 +183,7 @@ namespace uconsole
 		{
 			if (Time.time - _lastTimeClick < 0.3f)
 			{
-				Debug.Log("aaaa");
+				CopyLog();
 			}
 
 			_lastTimeClick = Time.time;
