@@ -1,7 +1,8 @@
 {
     "name": "IngameDebugConsole.Editor",
+    "rootNamespace": "",
     "references": [
-        "IngameDebugConsole.Runtime"
+        "GUID:3de88c88fbbb8f944b9210d496af9762"
     ],
     "includePlatforms": [
         "Editor"
