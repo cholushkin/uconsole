@@ -1,4 +1,5 @@
 using System;
+using GameLib.Log;
 using MoonSharp.Interpreter;
 using MoonSharp.UnityWrapper;
 using UnityEngine;
@@ -29,7 +30,7 @@ namespace uconsole
             RegisterCommandsAndVariable();
 
             // if (RunAutoexec)
-            //     Script.DoFile("Autoexec");
+            //      Script.DoFile("Autoexec");
         }
 
         private void RegisterLuaWrapperTypes()
@@ -70,10 +71,7 @@ namespace uconsole
             }
 
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
-
-            // LogChecker.Print(LogChecker.Level.Normal, $"Registered {_consoleSystem.Methods.Count} console commands");
-            // if (LogChecker.Verbose())
-                Script.DoString("PrintTable(__CSCommandsRegister, 1, 4)");
+            LogHelpers.Log.Print(LogChecker.Level.Normal, $"Registered {_consoleSystem.Methods.Count} console commands");
         }
 
         private void AddVariablesToRegistryTable()
@@ -91,10 +89,7 @@ namespace uconsole
             }
 
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
-
-            // LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Variables.Count} console variables");
-            // if (LogChecker.Verbose())
-                Script.DoString("PrintTable(__CSVariablesRegister, 1, 4)");
+            LogHelpers.Log.Print(LogChecker.Level.Normal, $"Registered {_consoleSystem.Variables.Count} console variables");
         }
 
         private void RegisterCommandsAndVariable()
