@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using GameLib.Alg;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
@@ -42,17 +44,10 @@ namespace uconsole
 		Never = 2
 	}
 
-	public class DebugLogManager : MonoBehaviour
+	public class UConsoleController : Singleton<UConsoleController>
 	{
-		public static DebugLogManager Instance { get; private set; }
-
+		public UnityEvent<bool> OnConsoleToggle;
 #pragma warning disable 0649
-		[Header( "Properties" )]
-		[SerializeField]
-		[HideInInspector]
-		[Tooltip( "If enabled, console window will persist between scenes (i.e. not be destroyed when scene changes)" )]
-		private bool singleton = true;
-
 		[SerializeField]
 		[HideInInspector]
 		[Tooltip( "Minimum height of the console window" )]
@@ -94,16 +89,6 @@ namespace uconsole
 		[HideInInspector]
 		[Tooltip( "Determines which log types will show the popup on screen" )]
 		private DebugLogFilter popupVisibilityLogFilter = DebugLogFilter.All;
-
-		[SerializeField]
-		[HideInInspector]
-		[Tooltip( "If enabled, console window will initially be invisible" )]
-		private bool startMinimized = false;
-
-		[SerializeField]
-		[HideInInspector]
-		[Tooltip( "If enabled, pressing the Toggle Key will show/hide (i.e. toggle) the console window at runtime" )]
-		private bool toggleWithKey = false;
 
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 		[SerializeField]
@@ -319,8 +304,7 @@ namespace uconsole
 		private DebugLogRecycledListView recycledListView;
 #pragma warning restore 0649
 
-		private bool isLogWindowVisible = true;
-		public bool IsLogWindowVisible { get { return isLogWindowVisible; } }
+		public bool IsLogWindowVisible => Mathf.Approximately(logWindowCanvasGroup.alpha, logWindowOpacity);
 
 		public bool PopupEnabled
 		{
@@ -432,9 +416,6 @@ namespace uconsole
 		private System.Predicate<DebugLogEntry> shouldRemoveLogEntryToShowPredicate;
 		private System.Action<DebugLogEntry, int> updateLogEntryCollapsedIndexAction;
 
-		// Callbacks for log window show/hide events
-		public System.Action OnLogWindowShown, OnLogWindowHidden;
-
 #if UNITY_EDITOR
 		private bool isQuittingApplication;
 #endif
@@ -443,23 +424,11 @@ namespace uconsole
 		private DebugLogLogcatListener logcatListener;
 #endif
 
-		private void Awake()
+		protected override void Awake()
 		{
-			// Only one instance of debug console is allowed
-			if( !Instance )
-			{
-				Instance = this;
-				ConsoleSystem.Instance = new ConsoleSystem();
-
-				// If it is a singleton object, don't destroy it between scene changes
-				if( singleton )
-					DontDestroyOnLoad( gameObject );
-			}
-			else if( Instance != this )
-			{
-				Destroy( gameObject );
-				return;
-			}
+			base.Awake();
+			
+			ConsoleSystem.Instance = new ConsoleSystem();
 
 			pooledLogEntries = new Stack<DebugLogEntry>( 64 );
 			pooledLogItems = new Stack<DebugLogItem>( 16 );
@@ -643,19 +612,11 @@ namespace uconsole
 
 		private void Start()
 		{
-			if( startMinimized )
-				HideLogWindow();
-			else
-				ShowLogWindow();
-
 			PopupEnabled = ( popupVisibility != PopupVisibility.Never );
 		}
 
 		private void OnDestroy()
 		{
-			if( Instance == this )
-				Instance = null;
-
 			if( receiveLogsWhileInactive )
 				Application.logMessageReceivedThreaded -= ReceivedLog;
 
@@ -714,23 +675,6 @@ namespace uconsole
 					ReceivedLog( "LOGCAT: " + log, string.Empty, LogType.Log );
 			}
 #endif
-
-#if !ENABLE_INPUT_SYSTEM || ENABLE_LEGACY_INPUT_MANAGER
-			// Toggling the console with toggleKey is handled in Update instead of LateUpdate because
-			// when we hide the console, we don't want the commandInputField to capture the toggleKey.
-			// InputField captures input in LateUpdate so deactivating it in Update ensures that
-			// no further input is captured
-			if( toggleWithKey )
-			{
-				if( Input.GetKeyDown( toggleKey ) )
-				{
-					if( isLogWindowVisible )
-						HideLogWindow();
-					else
-						ShowLogWindow();
-				}
-			}
-#endif
 		}
 
 		private void LateUpdate()
@@ -740,18 +684,18 @@ namespace uconsole
 				return;
 #endif
 
-			int numberOfLogsToProcess = isLogWindowVisible ? queuedLogEntries.Count : ( queuedLogEntries.Count - queuedLogLimit );
+			int numberOfLogsToProcess = IsLogWindowVisible ? queuedLogEntries.Count : ( queuedLogEntries.Count - queuedLogLimit );
 			ProcessQueuedLogs( numberOfLogsToProcess );
 
 			if( uncollapsedLogEntries.Count >= maxLogCount )
 			{
 				/// If log window isn't visible, remove the logs over time (i.e. don't remove more than <see cref="logsToRemoveAfterMaxLogCount"/>) to avoid performance issues.
-				int numberOfLogsToRemove = Mathf.Min( !isLogWindowVisible ? logsToRemoveAfterMaxLogCount : ( uncollapsedLogEntries.Count - maxLogCount + logsToRemoveAfterMaxLogCount ), uncollapsedLogEntries.Count );
+				int numberOfLogsToRemove = Mathf.Min( !IsLogWindowVisible ? logsToRemoveAfterMaxLogCount : ( uncollapsedLogEntries.Count - maxLogCount + logsToRemoveAfterMaxLogCount ), uncollapsedLogEntries.Count );
 				RemoveOldestLogs( numberOfLogsToRemove );
 			}
 
 			// Don't perform CPU heavy tasks if neither the log window nor the popup is visible
-			if( !isLogWindowVisible && !PopupEnabled )
+			if( !IsLogWindowVisible && !PopupEnabled )
 				return;
 
 			int newInfoEntryCount, newWarningEntryCount, newErrorEntryCount;
@@ -772,26 +716,26 @@ namespace uconsole
 				if( newInfoEntryCount > 0 )
 				{
 					infoEntryCount += newInfoEntryCount;
-					if( isLogWindowVisible )
+					if( IsLogWindowVisible )
 						infoEntryCountText.text = infoEntryCount.ToString();
 				}
 
 				if( newWarningEntryCount > 0 )
 				{
 					warningEntryCount += newWarningEntryCount;
-					if( isLogWindowVisible )
+					if( IsLogWindowVisible )
 						warningEntryCountText.text = warningEntryCount.ToString();
 				}
 
 				if( newErrorEntryCount > 0 )
 				{
 					errorEntryCount += newErrorEntryCount;
-					if( isLogWindowVisible )
+					if( IsLogWindowVisible )
 						errorEntryCountText.text = errorEntryCount.ToString();
 				}
 
 				// If debug popup is visible, notify it of the new debug entries
-				if( !isLogWindowVisible )
+				if( !IsLogWindowVisible )
 				{
 					entryCountTextsDirty = true;
 
@@ -810,7 +754,7 @@ namespace uconsole
 				}
 			}
 
-			if( isLogWindowVisible )
+			if( IsLogWindowVisible )
 			{
 				// Update visible logs if necessary
 				if( shouldUpdateRecycledListView )
@@ -933,7 +877,7 @@ namespace uconsole
 			if( screenDimensionsChanged )
 			{
 				// Update the recycled list view
-				if( isLogWindowVisible )
+				if( IsLogWindowVisible )
 					recycledListView.OnViewportHeightChanged();
 				else
 					popupManager.UpdatePosition( true );
@@ -963,11 +907,7 @@ namespace uconsole
 			if( autoFocusOnCommandInputField )
 				StartCoroutine( ActivateCommandInputFieldCoroutine() );
 #endif
-
-			isLogWindowVisible = true;
-
-			if( OnLogWindowShown != null )
-				OnLogWindowShown();
+			OnConsoleToggle?.Invoke(true);
 		}
 
 		public void HideLogWindow()
@@ -982,14 +922,15 @@ namespace uconsole
 			if( popupVisibility == PopupVisibility.Always )
 				popupManager.Show();
 
-			isLogWindowVisible = false;
+			OnConsoleToggle?.Invoke(false);
+		}
 
-			// Deselect the currently selected UI object (if any) when the log window is hidden to avoid edge cases: https://github.com/yasirkula/UnityIngameDebugConsole/pull/85
-			if( EventSystem.current != null )
-				EventSystem.current.SetSelectedGameObject( null );
-
-			if( OnLogWindowHidden != null )
-				OnLogWindowHidden();
+		public void Toggle()
+		{
+			if (IsLogWindowVisible)
+				HideLogWindow();
+			else
+				ShowLogWindow();
 		}
 
 		// Command field input is changed, check if command is submitted
@@ -1214,7 +1155,7 @@ namespace uconsole
 			Sprite logTypeSpriteRepresentation = logEntry.logTypeSpriteRepresentation;
 			if( isCollapseOn && isEntryInCollapsedEntryList )
 			{
-				if( isLogWindowVisible || timestampsOfLogEntriesToShow != null )
+				if( IsLogWindowVisible || timestampsOfLogEntriesToShow != null )
 				{
 					if( !isInSearchMode && logFilter == DebugLogFilter.All )
 						logEntryIndexInEntriesToShow = logEntry.collapsedIndex;
@@ -1226,7 +1167,7 @@ namespace uconsole
 						if( timestampsOfLogEntriesToShow != null )
 							timestampsOfLogEntriesToShow[logEntryIndexInEntriesToShow] = timestamp;
 
-						if( isLogWindowVisible )
+						if( IsLogWindowVisible )
 							recycledListView.OnCollapsedLogEntryAtIndexUpdated( logEntryIndexInEntriesToShow );
 					}
 				}
@@ -1299,10 +1240,10 @@ namespace uconsole
 
 				recycledListView.OnLogEntriesRemoved( removedLogEntriesToShowCount );
 
-				if( isLogWindowVisible )
+				if( IsLogWindowVisible )
 					OnLogEntriesUpdated( false, true );
 			}
-			else if( isLogWindowVisible && isCollapseOn )
+			else if( IsLogWindowVisible && isCollapseOn )
 				recycledListView.RefreshCollapsedLogEntryCounts();
 
 			entryCountTextsDirty = true;
@@ -1830,6 +1771,7 @@ namespace uconsole
 		{
 			// Waiting 1 frame before activating commandInputField ensures that the toggleKey isn't captured by it
 			yield return null;
+			
 			commandInputField.ActivateInputField();
 
 			yield return null;

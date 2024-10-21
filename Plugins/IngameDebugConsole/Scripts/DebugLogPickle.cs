@@ -11,20 +11,20 @@ namespace uconsole
 {
 	public class DebugLogPickle : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 	{
-		private RectTransform popupTransform;
-
 		// Dimensions of the popup divided by 2
 		private Vector2 halfSize;
 
-		// Background image that will change color to indicate an alert
-		private Image backgroundImage;
-
-		// Canvas group to modify visibility of the popup
+		[SerializeField]
 		private CanvasGroup canvasGroup;
 
 #pragma warning disable 0649
 		[SerializeField]
-		private DebugLogManager debugManager;
+		private UConsoleController debugManager;
+		[SerializeField]
+		private RectTransform popupTransform;
+		[SerializeField]
+		// Background image that will change color to indicate an alert
+		private Image backgroundImage;
 
 		[SerializeField]
 		private Text newInfoCountText;
@@ -56,12 +56,7 @@ namespace uconsole
 
 		private void Awake()
 		{
-			popupTransform = (RectTransform) transform;
-			backgroundImage = GetComponent<Image>();
-			canvasGroup = GetComponent<CanvasGroup>();
-
 			normalColor = backgroundImage.color;
-
 			halfSize = popupTransform.sizeDelta * 0.5f;
 
 			Vector2 pos = popupTransform.anchoredPosition;

@@ -23,7 +23,7 @@ namespace uconsole
 		private Color logItemSelectedColor;
 #pragma warning restore 0649
 
-		internal DebugLogManager manager;
+		internal UConsoleController UConsole;
 		private ScrollRect scrollView;
 
 		private float logItemHeight;
@@ -55,14 +55,14 @@ namespace uconsole
 			scrollView = viewportTransform.GetComponentInParent<ScrollRect>();
 			scrollView.onValueChanged.AddListener( ( pos ) =>
 			{
-				if( manager.IsLogWindowVisible )
+				if( UConsole.IsLogWindowVisible )
 					UpdateItemsInTheList( false );
 			} );
 		}
 
-		public void Initialize( DebugLogManager manager, DynamicCircularBuffer<DebugLogEntry> entriesToShow, DynamicCircularBuffer<DebugLogEntryTimestamp> timestampsOfEntriesToShow, float logItemHeight )
+		public void Initialize( UConsoleController manager, DynamicCircularBuffer<DebugLogEntry> entriesToShow, DynamicCircularBuffer<DebugLogEntryTimestamp> timestampsOfEntriesToShow, float logItemHeight )
 		{
-			this.manager = manager;
+			this.UConsole = manager;
 			this.entriesToShow = entriesToShow;
 			this.timestampsOfEntriesToShow = timestampsOfEntriesToShow;
 			this.logItemHeight = logItemHeight;
@@ -97,7 +97,7 @@ namespace uconsole
 			else
 				scrollView.verticalNormalizedPosition = Mathf.Clamp01( Mathf.InverseLerp( transformComponentCenterYAtBottom, transformComponentCenterYAtTop, transformComponentTargetCenterY ) );
 
-			manager.SnapToBottom = false;
+			UConsole.SnapToBottom = false;
 		}
 
 		private void OnLogItemClickedInternal( int itemIndex, DebugLogItem referenceItem = null )
@@ -111,13 +111,13 @@ namespace uconsole
 				indexOfSelectedLogEntry = itemIndex;
 				CalculateSelectedLogEntryHeight( referenceItem );
 
-				manager.SnapToBottom = false;
+				UConsole.SnapToBottom = false;
 			}
 
 			CalculateContentHeight();
 			UpdateItemsInTheList( true );
 
-			manager.ValidateScrollPosition();
+			UConsole.ValidateScrollPosition();
 		}
 
 		// Deselect the currently selected log item
@@ -165,7 +165,7 @@ namespace uconsole
 					indexOfSelectedLogEntry = isCollapseOn ? FindIndexOfLogEntryInReverseDirection( selectedLogEntry, indexOfSelectedLogEntry ) : ( indexOfSelectedLogEntry - removedLogCount );
 			}
 
-			if( !manager.IsLogWindowVisible && manager.SnapToBottom )
+			if( !UConsole.IsLogWindowVisible && UConsole.SnapToBottom )
 			{
 				// When log window becomes visible, it refreshes all logs. So unless snap to bottom is disabled, we don't need to
 				// keep track of either the scroll position or the visible log items' positions.
@@ -184,7 +184,7 @@ namespace uconsole
 			{
 				currentTopIndex = -1;
 
-				if( !manager.SnapToBottom )
+				if( !UConsole.SnapToBottom )
 					transformComponent.anchoredPosition = Vector2.zero;
 			}
 			else
@@ -199,7 +199,7 @@ namespace uconsole
 					logItem.Index = currentTopIndex + i;
 
 					// If log window is visible, we need to manually refresh the visible items' visual properties. Otherwise, all log items will be refreshed when log window is opened
-					if( manager.IsLogWindowVisible )
+					if( UConsole.IsLogWindowVisible )
 					{
 						RepositionLogItem( logItem );
 						ColorLogItem( logItem );
@@ -211,7 +211,7 @@ namespace uconsole
 				}
 
 				// Shift the ScrollRect
-				if( !manager.SnapToBottom )
+				if( !UConsole.SnapToBottom )
 					transformComponent.anchoredPosition = new Vector2( 0f, Mathf.Max( 0f, transformComponent.anchoredPosition.y - ( visibleLogItems[0].Transform.anchoredPosition.y - firstVisibleLogItemInitialYPos ) ) );
 			}
 		}
@@ -248,7 +248,7 @@ namespace uconsole
 			CalculateContentHeight();
 			UpdateItemsInTheList( true );
 
-			manager.ValidateScrollPosition();
+			UConsole.ValidateScrollPosition();
 		}
 
 		// Log window's height has changed, update the list
@@ -313,7 +313,7 @@ namespace uconsole
 					// just create the new log items
 					updateAllVisibleItemContents = true;
 					for( int i = 0, count = newBottomIndex - newTopIndex + 1; i < count; i++ )
-						visibleLogItems.Add( manager.PopLogItem() );
+						visibleLogItems.Add( UConsole.PopLogItem() );
 				}
 				else
 				{
@@ -328,7 +328,7 @@ namespace uconsole
 
 						visibleLogItems.TrimStart( visibleLogItems.Count, poolLogItemAction );
 						for( int i = 0, count = newBottomIndex - newTopIndex + 1; i < count; i++ )
-							visibleLogItems.Add( manager.PopLogItem() );
+							visibleLogItems.Add( UConsole.PopLogItem() );
 					}
 					else
 					{
@@ -344,7 +344,7 @@ namespace uconsole
 						if( newTopIndex < currentTopIndex )
 						{
 							for( int i = 0, count = currentTopIndex - newTopIndex; i < count; i++ )
-								visibleLogItems.AddFirst( manager.PopLogItem() );
+								visibleLogItems.AddFirst( UConsole.PopLogItem() );
 
 							// If it is not necessary to update all the log items,
 							// then just update the newly created log items. Otherwise,
@@ -356,7 +356,7 @@ namespace uconsole
 						if( newBottomIndex > currentBottomIndex )
 						{
 							for( int i = 0, count = newBottomIndex - currentBottomIndex; i < count; i++ )
-								visibleLogItems.Add( manager.PopLogItem() );
+								visibleLogItems.Add( UConsole.PopLogItem() );
 
 							// If it is not necessary to update all the log items,
 							// then just update the newly created log items. Otherwise,

@@ -149,17 +149,17 @@ namespace uconsole
 		{
 			logEntryTimestamp = timestamp;
 
-			if( isExpanded || listView.manager.alwaysDisplayTimestamps )
+			if( isExpanded || listView.UConsole.alwaysDisplayTimestamps )
 				SetText( logEntry, timestamp, isExpanded );
 		}
 
 		private void SetText( DebugLogEntry logEntry, DebugLogEntryTimestamp? logEntryTimestamp, bool isExpanded )
 		{
-			if( !logEntryTimestamp.HasValue || ( !isExpanded && !listView.manager.alwaysDisplayTimestamps ) )
+			if( !logEntryTimestamp.HasValue || ( !isExpanded && !listView.UConsole.alwaysDisplayTimestamps ) )
 				logText.text = isExpanded ? logEntry.ToString() : logEntry.logString;
 			else
 			{
-				StringBuilder sb = listView.manager.sharedStringBuilder;
+				StringBuilder sb = listView.UConsole.sharedStringBuilder;
 				sb.Length = 0;
 
 				if( isExpanded )
@@ -230,7 +230,7 @@ namespace uconsole
 				return logEntry.ToString();
 			else
 			{
-				StringBuilder sb = listView.manager.sharedStringBuilder;
+				StringBuilder sb = listView.UConsole.sharedStringBuilder;
 				sb.Length = 0;
 
 				logEntryTimestamp.Value.AppendFullTimestamp( sb );

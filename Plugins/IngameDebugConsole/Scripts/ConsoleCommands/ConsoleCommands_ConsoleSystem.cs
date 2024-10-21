@@ -7,15 +7,14 @@ using UnityEngine;
 
 namespace uconsole
 {
-    public class ConsoleCommandsConsoleRoutines
+    public class ConsoleCommandsConsoleSystem
     {
         [ConsoleMethod("console.cmd.list", "help", "Print the list of all available commands", "Specify commands to print by a wildcard. Works with full names of commands"), UnityEngine.Scripting.Preserve]
 		public static void PrintAllCommands(string wildcard = null)
         {
-            StringBuilder stringBuilder = new StringBuilder(4096);
             int counter = 0;
 
-            stringBuilder.Append($"Format: FullName<AliasName>(Parameters) : Description\n");
+            Debug.Log("Format: FullName<AliasName>(Parameters) : Description");
 
             for (int i = 0; i < ConsoleSystem.Instance.Methods.Count; i++)
             {
@@ -27,17 +26,18 @@ namespace uconsole
                         continue;
                 }
 
-                stringBuilder.Append("\n  - ").Append(ConsoleSystem.Instance.Methods[i].Signature);
+                var method = "  - " + ConsoleSystem.Instance.Methods[i].Signature;
                 if(!string.IsNullOrEmpty(ConsoleSystem.Instance.Methods[i].CmdDescription))
-                    stringBuilder.Append(" : ").Append(ConsoleSystem.Instance.Methods[i].CmdDescription);
+                    method += " : " + ConsoleSystem.Instance.Methods[i].CmdDescription;
                 if (!ConsoleSystem.Instance.Methods[i].IsValid())
-                    stringBuilder.Append("[Invalid]");
+                    method += "[Invalid]";
+
+                Debug.Log(method);
                 ++counter;
             }
 
-            stringBuilder.Append($"\n\nCommands amount: {counter}");
-
-            Debug.Log(stringBuilder.ToString());
+            Debug.Log("");
+            Debug.Log($"Commands amount: {counter}");
         }
 
         [ConsoleMethod("console.cmd.help", "hlp", "Print help for specific command", "Full name or alias of command. Parameter could be a string or a direct address of the function. For example: hlp(hlp) or hlp('hlp') or hlp('console.cmd.hlp')"), UnityEngine.Scripting.Preserve]

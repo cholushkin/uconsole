@@ -12,7 +12,7 @@ namespace uconsole
 	public class DebugsOnScrollListener : MonoBehaviour, IScrollHandler, IBeginDragHandler, IEndDragHandler
 	{
 		public ScrollRect debugsScrollRect;
-		public DebugLogManager debugLogManager;
+		public UConsoleController debugLogManager;
 
 		public void OnScroll( PointerEventData data )
 		{

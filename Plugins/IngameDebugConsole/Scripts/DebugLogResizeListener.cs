@@ -8,7 +8,7 @@ namespace uconsole
 	{
 #pragma warning disable 0649
 		[SerializeField]
-		private DebugLogManager debugManager;
+		private UConsoleController debugManager;
 #pragma warning restore 0649
 
 		// This interface must be implemented in order to receive drag events
