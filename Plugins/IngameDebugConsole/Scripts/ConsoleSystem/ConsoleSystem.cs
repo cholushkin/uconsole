@@ -92,77 +92,33 @@ namespace uconsole
 
 
         public List<ConsoleMethodInfo> Methods { get; } = new(128);
-        public List<(string, ConsoleMethodInfo)> MethodSearchTable { get; } = new(128);
         public List<ConsoleVariableInfo> Variables { get; } = new();
+        
+        public List<string> Suggestions { get; } = new(128);
+        
 
         // CompareInfo used for case-insensitive command name comparison
         internal static readonly CompareInfo caseInsensitiveComparer = new CultureInfo("en-US").CompareInfo;
 
 
-        public ConsoleSystem()
+        public ConsoleSystem(Assemblies assemblies)
         {
-            AddCommandsAndVariables();
+            Assert.IsTrue(assemblies.AssemblyFilteringMode != Assemblies.FilteringMode.BlackList, "Not implemented. Black list is not supported");
+            AddCommandsAndVariables(assemblies.List);
             UnityWrapperTypes.RegisterUnityWrapperTypes();
             UnityCustomConvertors.RegisterCustomConvertors();
             Executor = new Executor(this);
         }
 
-        private void AddCommandsAndVariables()
+        private void AddCommandsAndVariables(string[] whiteList)
         {
-            #if UNITY_EDITOR || !NETFX_CORE
-            // Find all [ConsoleMethod] functions
-            // Don't search built-in assemblies for console methods since they can't have any
-            string[] ignoredAssemblies = {
-                "Unity",
-                "System",
-                "Mono.",
-                "mscorlib",
-                "netstandard",
-                "TextMeshPro",
-                "Microsoft.GeneratedCode",
-                "I18N",
-                "Boo.",
-                "UnityScript.",
-                "ICSharpCode.",
-                "ExCSS.Unity",
-#if UNITY_EDITOR
-				"Assembly-CSharp-Editor",
-                "Assembly-UnityScript-Editor",
-                "nunit.",
-                "SyntaxTree.",
-                "AssetStoreTools",
-#endif
-			};
-#endif
-
-#if UNITY_EDITOR || !NETFX_CORE
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-#else
-			foreach( Assembly assembly in new Assembly[] { typeof( DebugLogConsole ).Assembly } ) // On UWP, at least search this plugin's Assembly for console methods
-#endif
             {
-#if (NET_4_6 || NET_STANDARD_2_0) && (UNITY_EDITOR || !NETFX_CORE)
-                if (assembly.IsDynamic)
-                    continue;
-#endif
-
                 string assemblyName = assembly.GetName().Name;
-
-#if UNITY_EDITOR || !NETFX_CORE
-                bool ignoreAssembly = false;
-                for (int i = 0; i < ignoredAssemblies.Length; i++)
-                {
-                    if (caseInsensitiveComparer.IsPrefix(assemblyName, ignoredAssemblies[i], CompareOptions.IgnoreCase))
-                    {
-                        ignoreAssembly = true;
-                        break;
-                    }
-                }
-
-                if (ignoreAssembly)
+                bool isInWhiteList = whiteList
+                    .Any(prefix => caseInsensitiveComparer.IsPrefix(assemblyName, prefix, CompareOptions.IgnoreCase));
+                if(!isInWhiteList)
                     continue;
-#endif
-
                 try
                 {
                     foreach (Type type in assembly.GetExportedTypes())
@@ -192,10 +148,9 @@ namespace uconsole
                 catch (System.IO.FileNotFoundException) { }
                 catch (Exception e)
                 {
-                    Debug.LogError($"Couldn't search assembly for [ConsoleMethod] attributes: {assemblyName}\n{e}");
+                    Debug.LogError($"Couldn't search assembly for [ConsoleMethod][ConsoleVariable] attributes: {assemblyName}\n{e}");
                 }
             }
-
         }
 
 
@@ -256,8 +211,8 @@ namespace uconsole
 
             var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, commandFullName, aliasName, methodSignature, description, parameterDescriptions);
             Methods.Add(methodInfo);
-            MethodSearchTable.Add((commandFullName, methodInfo));
-            MethodSearchTable.Add((aliasName, methodInfo));
+            Suggestions.Add(commandFullName);
+            Suggestions.Add(aliasName);
         }
 
         private void AddVariable(string varFullName, string aliasName, string description, PropertyInfo prop, object instance)
@@ -282,6 +237,9 @@ namespace uconsole
             string variableSignature = CreatePropSignature(aliasName, varFullName, description, prop);
 
             Variables.Add(new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature, description));
+            
+            Suggestions.Add(varFullName);
+            Suggestions.Add(aliasName);
         }
 
         private static string[] CreateParameterDescriptions(ParameterInfo[] parameters, string[] parameterDescription)
@@ -343,34 +301,7 @@ namespace uconsole
             );
         }
 
-        public void PrepareSearchTable()
-        {
-            MethodSearchTable.Sort(
-                (e1, e2) => String.Compare(e1.Item1, e2.Item1, StringComparison.Ordinal)
-            );
-        }
-
-        // Find command's index in the list of registered commands using binary search
-        private int FindCommandIndex(string command)
-        {
-            int min = 0;
-            int max = Methods.Count - 1;
-            while (min <= max)
-            {
-                int mid = (min + max) / 2;
-                int comparison = caseInsensitiveComparer.Compare(command, Methods[mid].FullName, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace);
-                if (comparison == 0)
-                    return mid;
-                else if (comparison < 0)
-                    max = mid - 1;
-                else
-                    min = mid + 1;
-            }
-
-            return ~min;
-        }
-
-        public static bool IsSupportedArrayType(Type type)
+        private static bool IsSupportedArrayType(Type type)
         {
             if (type.IsArray)
             {
@@ -392,7 +323,7 @@ namespace uconsole
             return IsParseableType(type) || typeof(Component).IsAssignableFrom(type) || type.IsEnum;
         }
 
-        public static string GetTypeReadableName(Type type)
+        private static string GetTypeReadableName(Type type)
         {
             string result;
             if (typeReadableNames.TryGetValue(type, out result))
@@ -410,12 +341,12 @@ namespace uconsole
             return type.Name;
         }
 
-        public static bool IsParseableType(Type type)
+        private static bool IsParseableType(Type type)
         {
             return true;
         }
 
-        public static bool IsValidAliasIdentifier(string name)
+        private static bool IsValidAliasIdentifier(string name)
         {
             if (string.IsNullOrEmpty(name))
                 return false;
@@ -423,7 +354,7 @@ namespace uconsole
             return char.IsLetter(name[0]) && name.All(chr => char.IsLetterOrDigit(chr) || chr == '_');
         }
 
-        public static bool IsValidFullNameIdentifier(string name)
+        private static bool IsValidFullNameIdentifier(string name)
         {
             // todo:
             if (string.IsNullOrEmpty(name))

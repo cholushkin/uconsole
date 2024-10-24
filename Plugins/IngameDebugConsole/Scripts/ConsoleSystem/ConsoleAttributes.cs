@@ -9,7 +9,8 @@ namespace uconsole
 		public string AliasName { get; } // Short global alias name 
 		public string Description { get; }
 		public string[] ParameterDescriptions { get; }
-        
+
+		
 		// todo: support null aliasName
 		public ConsoleMethodAttribute( string fullName, string aliasName, string description, params string[] parameterDescriptions)
 		{

@@ -21,7 +21,6 @@ namespace uconsole
             Script.DoFile("uconsole-core/LuaImplHelpers");
 
             _consoleSystem.SortMethodsTable();
-            _consoleSystem.PrepareSearchTable();
 
             RegisterLuaWrapperTypes();
             RegisterParameterTypes();
