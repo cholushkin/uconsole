@@ -93,9 +93,6 @@ namespace uconsole
 
         public List<ConsoleMethodInfo> Methods { get; } = new(128);
         public List<ConsoleVariableInfo> Variables { get; } = new();
-        
-        public List<string> Suggestions { get; } = new(128);
-        
 
         // CompareInfo used for case-insensitive command name comparison
         internal static readonly CompareInfo caseInsensitiveComparer = new CultureInfo("en-US").CompareInfo;
@@ -211,8 +208,6 @@ namespace uconsole
 
             var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, commandFullName, aliasName, methodSignature, description, parameterDescriptions);
             Methods.Add(methodInfo);
-            Suggestions.Add(commandFullName);
-            Suggestions.Add(aliasName);
         }
 
         private void AddVariable(string varFullName, string aliasName, string description, PropertyInfo prop, object instance)
@@ -236,10 +231,8 @@ namespace uconsole
             // Create the command
             string variableSignature = CreatePropSignature(aliasName, varFullName, description, prop);
 
-            Variables.Add(new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature, description));
-            
-            Suggestions.Add(varFullName);
-            Suggestions.Add(aliasName);
+            var variableInfo = new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature, description);
+            Variables.Add(variableInfo);
         }
 
         private static string[] CreateParameterDescriptions(ParameterInfo[] parameters, string[] parameterDescription)

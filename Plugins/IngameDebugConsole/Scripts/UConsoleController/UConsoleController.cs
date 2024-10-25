@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using FuzzySharp;
 using GameLib.Alg;
+using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -39,12 +41,14 @@ namespace uconsole
 		All = ~0
 	}
 
-	public enum PopupVisibility
+	public enum Assistant
 	{
-		Always = 0,
-		WhenLogReceived = 1,
-		Never = 2
+		NoAssistance,
+		CommandSuggestion,
+		ParametersSuggestion,
+		CommandFullHelp,
 	}
+
 
 	public class UConsoleController : Singleton<UConsoleController>
 	{
@@ -72,13 +76,13 @@ namespace uconsole
 		[SerializeField]
 		[HideInInspector]
 		[Tooltip( "Opacity of the console window" )]
-		[Range( 0f, 1f )]
+		[UnityEngine.Range( 0f, 1f )]
 		private float logWindowOpacity = 1f;
 
 		[SerializeField]
 		[HideInInspector]
 		[Tooltip( "Opacity of the popup" )]
-		[Range( 0f, 1f )]
+		[UnityEngine.Range( 0f, 1f )]
 		internal float popupOpacity = 1f;
 
 		[SerializeField]
@@ -346,8 +350,8 @@ namespace uconsole
 		// private int commandInputFieldPrevCaretArgumentIndex = -1;
 
 		// Value of the command input field when autocomplete was first requested
-		private string commandInputFieldAutoCompleteBase;
-		private bool commandInputFieldAutoCompletedNow;
+		// private string commandInputFieldAutoCompleteBase;
+		// private bool commandInputFieldAutoCompletedNow;
 
 		// Pools for memory efficiency
 		private Stack<DebugLogEntry> pooledLogEntries;
@@ -388,6 +392,7 @@ namespace uconsole
 		private System.Action<DebugLogEntry, int> updateLogEntryCollapsedIndexAction;
 
 
+		private Assistant _currentAssistant;
 		private bool _IsLogWindowVisiblePrev;
 
 #if UNITY_EDITOR
@@ -756,6 +761,22 @@ namespace uconsole
 				// if( showCommandSuggestions && commandInputField.isFocused && commandInputField.caretPosition != commandInputFieldPrevCaretPos )
 				// 	RefreshCommandSuggestions( commandInputField.text );
 
+
+				int index = -1; // index of the digit button 
+				for (int k = (int)Key.Digit1, i = 0; k <= (int)Key.Digit0; ++k, i++)
+					if (Keyboard.current[(Key)k].wasPressedThisFrame)
+						index = i;
+				
+				if (Keyboard.current[Key.LeftAlt].isPressed && index != -1)
+				{
+					InsertSuggestion(index);
+					SetAssistantMode(Assistant.CommandFullHelp);
+				}
+				// else if (Keyboard.current[Key.Escape].isPressed)
+				// {
+				// 	SetAssistantMode(Assistant.NoAssistance);
+				// }
+
 				if( commandInputField.isFocused && commandHistory.Count > 0 )
 				{
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
@@ -809,6 +830,11 @@ namespace uconsole
 
 				screenDimensionsChanged = false;
 			}
+		}
+
+		private void InsertSuggestion(int i)
+		{
+			commandInputField.text = commandSuggestionsContainer.GetSuggestion(i);
 		}
 
 		// Command field input is changed, check if command is submitted
@@ -1295,32 +1321,114 @@ namespace uconsole
 				FilterLogs();
 			}
 		}
+
+		List<ConsoleSystem.ConsoleMethodInfo> GenerateMethodSuggestions(
+			List<(ConsoleSystem.ConsoleMethodInfo, int)> methodsSuggestions,
+			int methodCount)
+		{
+			return methodsSuggestions
+				.OrderByDescending(m => m.Item2) // Sort by score descending
+				.Take(methodCount) // Take the top 'methodCount' items
+				.Select(m => m.Item1) // Extract the ConsoleMethodInfo
+				.ToList();
+		}
+
+		List<ConsoleSystem.ConsoleVariableInfo> GenerateVariableSuggestions(
+			List<(ConsoleSystem.ConsoleVariableInfo, int)> variablesSuggestions,
+			int variableCount)
+		{
+			return variablesSuggestions
+				.OrderByDescending(v => v.Item2) // Sort by score descending
+				.Take(variableCount) // Take the top 'variableCount' items
+				.Select(v => v.Item1) // Extract the ConsoleVariableInfo
+				.ToList();
+		}
+
+		(List<ConsoleSystem.ConsoleMethodInfo>, List<ConsoleSystem.ConsoleVariableInfo>) GeneratePlayerSuggestions(
+			List<(ConsoleSystem.ConsoleMethodInfo, int)> methodsSuggestions,
+			List<(ConsoleSystem.ConsoleVariableInfo, int)> variablesSuggestions,
+			int methodPercentage,
+			int maxSuggestions)
+		{
+			// Validate methodPercentage (must be between 0 and 100)
+			methodPercentage = Mathf.Clamp(methodPercentage, 0, 100);
+
+			// Calculate the number of items to take from each list based on methodPercentage
+			int maxMethodCount = Mathf.Min((maxSuggestions * methodPercentage) / 100, methodsSuggestions.Count);
+			int maxVariableCount = Mathf.Min(maxSuggestions - maxMethodCount, variablesSuggestions.Count);
+
+			// Generate method and variable suggestions separately
+			var methodList = GenerateMethodSuggestions(methodsSuggestions, maxMethodCount);
+			var variableList = GenerateVariableSuggestions(variablesSuggestions, maxVariableCount);
+
+			// If total count is still less than maxSuggestions, add more items from the larger list
+			int totalCount = methodList.Count + variableList.Count;
+			if (totalCount < maxSuggestions)
+			{
+				int remainingSlots = maxSuggestions - totalCount;
+
+				if (methodList.Count < maxMethodCount)
+				{
+					methodList.AddRange(GenerateMethodSuggestions(methodsSuggestions.Skip(methodList.Count).ToList(),
+						remainingSlots));
+				}
+				else if (variableList.Count < maxVariableCount)
+				{
+					variableList.AddRange(
+						GenerateVariableSuggestions(variablesSuggestions.Skip(variableList.Count).ToList(),
+							remainingSlots));
+				}
+			}
+			return (methodList, variableList);
+		}
 		
-		private void RefreshCommandSuggestions( string command )
+		private void RefreshCommandSuggestions( string userInput )
 		{
 			if( !showCommandSuggestions )
 			 	return;
-			// var results = ConsoleSystem.Instance.Suggestions
-			// 	.Select(s => new { Suggestion = s, Score = Fuzz.Ratio(s, command) })
-			// 	.Where(x => x.Score > 70)  // Only consider suggestions with a score above 70
-			// 	.OrderByDescending(x => x.Score)
-			// 	.ToList();
 			
-			var results = ConsoleSystem.Instance.Suggestions
-				.Select(s => (Suggestion: s, Score: Fuzz.Ratio(s, command))) // Using a tuple with named elements
-				.Where(x => x.Score > 20)  // Only consider suggestions with a score above 70
-				.OrderByDescending(x => x.Score)  // Sort by score in descending order
-				.ToList();
-
-			
-			commandSuggestionsContainer.Clear();
-			int i = 0;
-			foreach (var suggestion in results)
+			var methodsSuggestions = new List<(ConsoleSystem.ConsoleMethodInfo, int)>();
+			int acceptAboveThreshold = 32; // Threshold for acceptable score
 			{
-				commandSuggestionsContainer.AddItem(suggestion);
-				if(i++>10)
-					break;
+				foreach (var methodInfo in ConsoleSystem.Instance.Methods)
+				{
+					// Calculate score based on FullName and AliasName
+					var score1 = Fuzz.Ratio(methodInfo.FullName, userInput);
+					var score2 = Fuzz.Ratio(methodInfo.AliasName, userInput);
+					var maxScore = Mathf.Max(score1, score2);
+					if (maxScore >= acceptAboveThreshold)
+					{
+						methodsSuggestions.Add((methodInfo, maxScore));
+					}
+				}
 			}
+			
+			var variablesSuggestions = new List<(ConsoleSystem.ConsoleVariableInfo, int)>();
+			acceptAboveThreshold = 32; // Threshold for acceptable score
+			{
+				foreach (var varInfo in ConsoleSystem.Instance.Variables)
+				{
+					// Calculate score based on FullName and AliasName
+					var score1 = Fuzz.Ratio(varInfo.FullName, userInput);
+					var score2 = Fuzz.Ratio(varInfo.AliasName, userInput);
+					var maxScore = Mathf.Max(score1, score2);
+					if (maxScore >= acceptAboveThreshold)
+					{
+						variablesSuggestions.Add((varInfo, maxScore));
+					}
+				}
+			}
+
+
+			const int maxSuggestions = 10;
+			var finalSuggestions = GeneratePlayerSuggestions(
+				methodsSuggestions, variablesSuggestions, 
+				60, maxSuggestions);
+
+			foreach (var methodInfo in finalSuggestions.Item1)
+				commandSuggestionsContainer.AddItem(methodInfo);
+			foreach (var variableInfo in finalSuggestions.Item2)
+				commandSuggestionsContainer.AddItem(variableInfo);
 			
 
 			// commandInputFieldPrevCaretPos = commandInputField.caretPosition;
@@ -1421,19 +1529,47 @@ namespace uconsole
 		// Command input field's text has changed
 		private void OnEditCommand( string command )
 		{
-			RefreshCommandSuggestions( command );
+			if (command.Contains('(') || command.Contains(')'))
+				SetAssistantMode(Assistant.ParametersSuggestion);
+			else
+				SetAssistantMode(Assistant.CommandSuggestion);
+			
+			if (_currentAssistant == Assistant.CommandSuggestion)
+			{
+				RefreshCommandSuggestions( command );
+			}
+			
 
-			if( !commandInputFieldAutoCompletedNow )
-				commandInputFieldAutoCompleteBase = null;
-			else // This change was caused by autocomplete
-				commandInputFieldAutoCompletedNow = false;
+			// if( !commandInputFieldAutoCompletedNow )
+			// 	commandInputFieldAutoCompleteBase = null;
+			// else // This change was caused by autocomplete
+			// 	commandInputFieldAutoCompletedNow = false;
+		}
+
+		private void SetAssistantMode(Assistant assistanceMode)
+		{
+			var prevAssistantMode = _currentAssistant; 
+			_currentAssistant = assistanceMode;
+			if (assistanceMode == Assistant.NoAssistance)
+			{
+				// Hide all assistant popups
+				commandSuggestionsContainer.Clear();
+			}
+			else if (assistanceMode == Assistant.CommandSuggestion)
+			{
+				commandSuggestionsContainer.Clear();
+			}
+			else if (assistanceMode ==Assistant.ParametersSuggestion)
+			{
+				commandSuggestionsContainer.Clear();
+			}
 		}
 
 		// Command input field has lost focus
 		private void OnEndEditCommand( string command )
 		{
-			if( commandSuggestionsContainer.gameObject.activeSelf )
-				commandSuggestionsContainer.gameObject.SetActive( false );
+			// if( commandSuggestionsContainer.gameObject.activeSelf )
+			// 	commandSuggestionsContainer.gameObject.SetActive( false );
 		}
 
 		// Debug window is being resized,
