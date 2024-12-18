@@ -11,9 +11,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 using UnityEngine.InputSystem;
-#endif
 #if UNITY_EDITOR && UNITY_2021_1_OR_NEWER
 using Screen = UnityEngine.Device.Screen; // To support Device Simulator on Unity 2021.1+
 #endif
