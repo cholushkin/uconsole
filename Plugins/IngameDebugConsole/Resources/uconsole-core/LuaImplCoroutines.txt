@@ -1,0 +1,22 @@
+function WaitUntil(condition)
+    while true do
+        local conditionMet
+
+        -- Check if the condition is a function or a boolean
+        if type(condition) == "function" then
+            conditionMet = condition()
+        elseif type(condition) == "boolean" then
+            conditionMet = condition
+        else
+            error("WaitUntil: condition must be a function or a boolean")
+        end
+
+        -- Break if the condition is met
+        if conditionMet then
+            break
+        end
+
+        -- Pause execution until the next iteration
+        coroutine.yield()
+    end
+end

@@ -8,7 +8,7 @@ namespace uconsole
 {
     public class Executor
     {
-        private Script Script;
+        public Script Script { get; }
         private ConsoleSystem _consoleSystem;
 
         public Executor(ConsoleSystem consoleSystem)
@@ -19,6 +19,7 @@ namespace uconsole
 
             Script = new Script();
             Script.DoFile("uconsole-core/LuaImplHelpers");
+            Script.DoFile("uconsole-core/LuaImplCoroutines");
 
             _consoleSystem.SortMethodsTable();
 

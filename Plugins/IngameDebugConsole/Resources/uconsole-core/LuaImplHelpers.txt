@@ -54,7 +54,7 @@ function PrintTable(t, nestLev, maxNest)
   end
 end
 
-function SplitString (inputstr, sep)
+function SplitString(inputstr, sep)
         if sep == nil then
                 sep = "%s"
         end
