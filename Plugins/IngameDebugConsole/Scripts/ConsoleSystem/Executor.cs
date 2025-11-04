@@ -1,8 +1,11 @@
 using System;
 using GameLib.Log;
+using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
 using MoonSharp.UnityWrapper;
 using UnityEngine;
+using ZLogger;
+using Logger = GameLib.Log.Logger;
 
 namespace uconsole
 {
@@ -10,6 +13,7 @@ namespace uconsole
     {
         public Script Script { get; }
         private ConsoleSystem _consoleSystem;
+        private Logger _logger = new Logger();
 
         public Executor(ConsoleSystem consoleSystem)
         {
@@ -71,7 +75,8 @@ namespace uconsole
             }
 
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
-            LogHelpers.Log.Print(LogChecker.Level.Normal, $"Registered {_consoleSystem.Methods.Count} console commands");
+            
+            _logger.Instance().ZLog(_logger.Level(LogLevel.Information),$"Registered {_consoleSystem.Methods.Count} console commands");
         }
 
         private void AddVariablesToRegistryTable()
@@ -89,7 +94,7 @@ namespace uconsole
             }
 
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
-            LogHelpers.Log.Print(LogChecker.Level.Normal, $"Registered {_consoleSystem.Variables.Count} console variables");
+            _logger.Instance().ZLog(_logger.Level(LogLevel.Information),$"Registered {_consoleSystem.Variables.Count} console variables");
         }
 
         private void RegisterCommandsAndVariable()
