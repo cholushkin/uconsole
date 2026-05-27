@@ -1,5 +1,5 @@
+using Alchemy.Inspector;
 using UnityEngine;
-using NaughtyAttributes;
 
 public class Assemblies : MonoBehaviour
 {
@@ -9,7 +9,7 @@ public class Assemblies : MonoBehaviour
         BlackList  // Exclude assemblies that start with any of the prefixes in the list
     }
 
-    [InfoBox("Filtering Mode Options:\n" +
+    [HelpBox("Filtering Mode Options:\n" +
              "1. WhiteList: Interpret the provided list as a whitelist. Only analyze assemblies whose names start with any of the prefixes in this list. \n" +
              "2. BlackList: Interpret the provided list as a blacklist. Ignore assemblies whose names start with any of the prefixes in this list.\n\n" +
              "Note: You can inspect the generated assemblies and their names to determine which prefixes to use. " +

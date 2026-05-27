@@ -5,7 +5,7 @@
         "GameLib",
         "Unity.InputSystem",
         "umoonsharp",
-        "NaughtyAttributes.Core"
+        "Alchemy"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
