@@ -1,4 +1,26 @@
-# In-game Debug Console for Unity 3D
+# UConsole (In-game Debug Console for Unity 3D)
+
+> **Fork notice:** this repository is a fork of [yasirkula's In-game Debug Console](https://github.com/yasirkula/UnityIngameDebugConsole) (MIT licensed — see `LICENSE.txt`, original copyright retained), extended with a Lua-scripted console (via [umoonsharp](https://github.com/cholushkin/umoonsharp)) and additional command/suggestion tooling. Package id: `com.qcat.uconsole`.
+
+## UPM Installation (this fork)
+
+Install via Unity Package Manager → **Install package from git URL**:
+
+```
+https://github.com/cholushkin/uconsole.git
+```
+
+### Required manual dependencies (install first, not declared as versioned `package.json` deps because they are Git-only / third-party, not on the Unity registry)
+
+1. **`com.qcat.gamelib`** — `https://github.com/cholushkin/gamelib.git` — used for logging (`GameLib.Log`).
+2. **`com.qcat.umoonsharp`** — `https://github.com/cholushkin/umoonsharp.git` — **hard dependency**: the Lua command executor (`Executor.cs`) directly instantiates MoonSharp's `Script` type (`using MoonSharp.Interpreter;`) to run console commands. The console will not compile without it.
+3. **Alchemy** (`Alchemy.Inspector`, third-party Unity inspector-extension library by AnnulusGames) — install per its own distribution instructions (e.g. `https://github.com/AnnulusGames/Alchemy.git`) before importing this package. Used by `Assemblies.cs`.
+4. **ZLogger** and **Microsoft.Extensions.Logging** (third-party .NET logging libraries, used by `Executor.cs` alongside GameLib's logger) — install per their own NuGet/UPM instructions.
+5. `com.unity.inputsystem` is a standard Unity Registry package and is declared as a normal dependency in `package.json` — no manual step needed.
+
+Bundled and requiring no separate install: **FuzzySharp** (fuzzy string matching) and the native Android/iOS/WebGL plugins under `Plugins/IngameDebugConsole/{Android,iOS,WebGL}`.
+
+---
 
 <img height="235" src="Images/1.png" alt="screenshot" /> <img height="235" src="Images/2.png" alt="screenshot2" />
 

@@ -1,10 +1,25 @@
 {
-  "name": "com.yasirkula.ingamedebugconsole",
-  "displayName": "In-game Debug Console",
+  "name": "com.qcat.uconsole",
+  "displayName": "UConsole (In-game Debug Console)",
   "version": "1.6.7",
-  "documentationUrl": "https://github.com/yasirkula/UnityIngameDebugConsole",
-  "changelogUrl": "https://github.com/yasirkula/UnityIngameDebugConsole/releases",
-  "licensesUrl": "https://github.com/yasirkula/UnityIngameDebugConsole/blob/master/LICENSE.txt",
-  "description": "This asset helps you see debug messages (logs, warnings, errors, exceptions) runtime in a build (also assertions in editor) and execute commands using its built-in console. It also supports logging logcat messages to the console on Android platform.",
+  "unity": "2021.3",
+  "documentationUrl": "https://github.com/cholushkin/uconsole/blob/master/.github/README.md",
+  "changelogUrl": "https://github.com/cholushkin/uconsole/blob/master/CHANGELOG.md",
+  "licensesUrl": "https://github.com/cholushkin/uconsole/blob/master/LICENSE.txt",
+  "description": "In-game debug console with Lua-scripted command execution, log viewing and fuzzy command suggestions. Forked from yasirkula's In-game Debug Console.",
+  "keywords": [
+    "console",
+    "debug",
+    "logging",
+    "lua"
+  ],
+  "author": {
+    "name": "Maxim Cholushkin",
+    "email": "cholushkin@gmail.com",
+    "url": "https://sites.google.com/view/cholushkinmaximcard/home"
+  },
+  "dependencies": {
+    "com.unity.inputsystem": "1.7.0"
+  },
   "hideInEditor": false
 }
