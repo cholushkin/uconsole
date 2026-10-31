@@ -46,7 +46,6 @@ namespace uconsole
 
 		private Color normalColor;
 
-		private bool isPopupBeingDragged = false;
 		private Vector2 normalizedPosition;
 
 		// Coroutines for simple code-based animations
@@ -151,13 +150,10 @@ namespace uconsole
 			canvasGroup.alpha = 0f;
 
 			IsVisible = false;
-			isPopupBeingDragged = false;
 		}
 
 		public void OnBeginDrag( PointerEventData data )
 		{
-			isPopupBeingDragged = true;
-
 			// If a smooth movement animation is in progress, cancel it
 			if( moveToPosCoroutine != null )
 			{
@@ -177,7 +173,6 @@ namespace uconsole
 		// Smoothly translate the popup to the nearest edge
 		public void OnEndDrag( PointerEventData data )
 		{
-			isPopupBeingDragged = false;
 			UpdatePosition( false );
 		}
 

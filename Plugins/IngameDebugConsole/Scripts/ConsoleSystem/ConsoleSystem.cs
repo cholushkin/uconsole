@@ -109,7 +109,11 @@ namespace uconsole
 
         private void AddCommandsAndVariables(string[] whiteList)
         {
+            // TypeCache is Editor-only, but this scan must also run in player builds, so
+            // AppDomain.GetAssemblies() is kept here deliberately.
+#pragma warning disable UAC0005
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+#pragma warning restore UAC0005
             {
                 string assemblyName = assembly.GetName().Name;
                 bool isInWhiteList = whiteList

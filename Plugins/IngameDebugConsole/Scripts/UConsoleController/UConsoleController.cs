@@ -88,10 +88,14 @@ namespace uconsole
 		[UnityEngine.Range( 0f, 1f )]
 		internal float popupOpacity = 1f;
 
+		// Reserved for a not-yet-implemented feature (per-log-type popup visibility); already
+		// serialized into existing prefabs with a non-default value, so left in place rather than removed.
+#pragma warning disable 0414
 		[SerializeField]
 		[HideInInspector]
 		[Tooltip( "Determines which log types will show the popup on screen" )]
 		private DebugLogFilter popupVisibilityLogFilter = DebugLogFilter.All;
+#pragma warning restore 0414
 
 		[SerializeField]
 		[HideInInspector]
